@@ -56,6 +56,22 @@ CREATE TABLE IF NOT EXISTS quality_issues (
     detail      TEXT,
     detected_at TEXT NOT NULL
 );
+
+CREATE VIEW IF NOT EXISTS annual_metrics AS
+WITH ranked AS (
+    SELECT
+        f.cik, c.metric, f.period_end, f.value, f.tag,
+        f.accession, f.form, f.filed_date,
+        ROW_NUMBER() OVER (
+            PARTITION BY f.cik, c.metric, f.period_end
+            ORDER BY c.priority ASC, f.filed_date DESC
+        ) AS rn
+    FROM facts f
+    JOIN concept_map c ON c.tag = f.tag
+)
+SELECT cik, metric, period_end, value, tag, accession, form, filed_date
+FROM ranked
+WHERE rn = 1;
 """
 
 # (metric, tag, priority, period_type). Lower priority number = tried first.
