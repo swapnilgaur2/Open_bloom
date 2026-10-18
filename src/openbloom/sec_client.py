@@ -21,11 +21,10 @@ def _normalize_cik(cik) -> str:
     return cik.zfill(10)
 
 
-def get_company_facts(cik) -> dict:
-    """Return SEC company facts for a CIK, using a 24h disk cache."""
+def _fetch_cached(url: str, cache_name: str) -> dict:
+    """GET a JSON URL with a 24h disk cache and request rate limiting."""
     global _last_request_time
-    cik = _normalize_cik(cik)
-    cache_file = CACHE_DIR / f"companyfacts_{cik}.json"
+    cache_file = CACHE_DIR / cache_name
 
     if cache_file.exists():
         age_hours = (time.time() - cache_file.stat().st_mtime) / 3600
@@ -40,7 +39,6 @@ def get_company_facts(cik) -> dict:
     if wait > 0:
         time.sleep(wait)
 
-    url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
     response = requests.get(url, headers={"User-Agent": user_agent}, timeout=30)
     _last_request_time = time.time()
     response.raise_for_status()
@@ -48,3 +46,17 @@ def get_company_facts(cik) -> dict:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(response.text, encoding="utf-8")
     return response.json()
+
+
+def get_company_facts(cik) -> dict:
+    """Return SEC company facts for a CIK."""
+    cik = _normalize_cik(cik)
+    url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+    return _fetch_cached(url, f"companyfacts_{cik}.json")
+
+
+def get_ticker_map() -> dict:
+    """Return the SEC's ticker -> CIK mapping file."""
+    return _fetch_cached(
+        "https://www.sec.gov/files/company_tickers.json", "company_tickers.json"
+    )
