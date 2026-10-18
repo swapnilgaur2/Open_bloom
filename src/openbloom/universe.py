@@ -21,6 +21,8 @@ TICKERS = [
 ]
 
 OUTPUT = Path("data/companies.csv")
+# The SEC ticker file sometimes points to a successor holding company with no 10-K history.
+CIK_OVERRIDES = {"XOM": ("0000034088", "Exxon Mobil Corp")}
 
 
 def build_universe() -> None:
@@ -29,6 +31,11 @@ def build_universe() -> None:
 
     rows, missing = [], []
     for ticker in TICKERS:
+        if ticker in CIK_OVERRIDES:
+            cik, name = CIK_OVERRIDES[ticker]
+            rows.append({"ticker": ticker, "cik": cik, "name": name})
+            continue
+
         record = by_ticker.get(ticker)
         if record is None:
             missing.append(ticker)
