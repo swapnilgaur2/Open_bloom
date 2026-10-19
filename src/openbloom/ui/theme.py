@@ -47,6 +47,10 @@ CSS = """
                                font-size:12px; padding:8px 18px; }
 .stTabs [aria-selected="true"] { color:#000 !important; background:#FFB000 !important; }
 .stTabs [data-baseweb="tab-highlight"] { background:transparent !important; }
+
+/* dropdowns look and feel like dropdowns (no text-cursor on hover) */
+div[data-baseweb="select"], div[data-baseweb="select"] * { cursor: pointer !important; }
+.stRadio label p { font-size:12px; letter-spacing:1px; }
 """
 
 

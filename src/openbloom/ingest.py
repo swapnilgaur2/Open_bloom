@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime, timezone
 
 from src.openbloom.db import get_connection, init_db
@@ -88,16 +89,22 @@ def ingest_company(conn, cik: str) -> int:
         raise
 
 
-def ingest_all() -> None:
+def ingest_all(refresh: bool = False) -> None:
     init_db()
     with get_connection() as conn:
+        done = set()
+        if not refresh:
+            done = {r[0] for r in conn.execute("SELECT DISTINCT cik FROM ingestion_runs WHERE status = 'success'")}
         companies = conn.execute("SELECT cik, ticker FROM companies ORDER BY ticker").fetchall()
-        for cik, ticker in companies:
+        todo = [(c, t) for c, t in companies if c not in done]
+        print(f"{len(todo)} to ingest, {len(companies) - len(todo)} already done (use --refresh to redo all)")
+
+        for i, (cik, ticker) in enumerate(todo, 1):
             try:
                 n = ingest_company(conn, cik)
-                print(f"{ticker:6} OK      {n} new facts")
+                print(f"[{i}/{len(todo)}] {ticker:6} OK      {n} new facts")
             except Exception as exc:
-                print(f"{ticker:6} FAILED  {exc}")
+                print(f"[{i}/{len(todo)}] {ticker:6} FAILED  {exc}")
 
         print("\nMissing metrics (companies with no data):")
         rows = conn.execute(
@@ -109,4 +116,4 @@ def ingest_all() -> None:
 
 
 if __name__ == "__main__":
-    ingest_all()
+    ingest_all(refresh="--refresh" in sys.argv)

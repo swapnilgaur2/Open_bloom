@@ -1,18 +1,19 @@
-import html
+﻿import html
 
 import streamlit as st
 
 from src.openbloom.metrics import METRICS
-from src.openbloom.ui.charts import bar_chart, compare_chart, growth_chart, line_chart, show_chart, style
-from src.openbloom.ui.data import get_companies, get_metrics, get_snapshot, query
-from src.openbloom.ui.format import pct, money, pct_change, pp_change, signed_color
+from src.openbloom.ui.charts import bar_chart, compare_chart, growth_chart, line_chart, show_chart
+from src.openbloom.ui.data import get_companies, get_metrics, get_revenue_rank, get_snapshot, query
+from src.openbloom.ui.format import money, pct, pct_change, pp_change, signed_color
 from src.openbloom.ui.labels import FORMULAS, METRIC_LABELS
+from src.openbloom.ui.model_views import render_dupont
 from src.openbloom.ui.tables import fin_table, kpi, show_kpis
 from src.openbloom.ui.theme import GREEN, apply_theme
 
 st.set_page_config(
     page_title="OpenBloom",
-    page_icon="🌱",
+    page_icon="💰",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -20,6 +21,7 @@ apply_theme()
 
 companies = get_companies()
 tickers = list(companies["ticker"])
+names = dict(zip(companies["ticker"], companies["name"]))
 
 st.markdown(
     '<div class="topbar"><span class="brand">OPENBLOOM</span>'
@@ -28,12 +30,30 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-names = dict(zip(companies["ticker"], companies["name"]))
-sel_col, _ = st.columns([2, 3])
-ticker = sel_col.selectbox(
-    "SECURITY",
-    tickers,
-    index=tickers.index("AAPL") if "AAPL" in tickers else 0,
+# ---------------- universe controls ----------------
+col_sec, col_view, col_pick = st.columns([2, 2, 3])
+pool = companies
+if "sector" in companies.columns:
+    sectors = sorted(s for s in companies["sector"].dropna().unique())
+    sector = col_sec.selectbox("SECTOR", ["All sectors"] + sectors)
+    if sector != "All sectors":
+        pool = companies[companies["sector"] == sector]
+else:
+    col_sec.caption("Sector filter appears once sectors are loaded.")
+
+view = col_view.radio("UNIVERSE", ["TOP 20", "TOP 50", "ALL"], index=2, horizontal=True)
+pool_t = list(pool["ticker"])
+pool_set = set(pool_t)
+ranked = [t for t in get_revenue_rank()["ticker"] if t in pool_set]
+view_t = ranked[:20] if view == "TOP 20" else ranked[:50] if view == "TOP 50" else pool_t
+if not view_t:
+    st.warning("No companies in this selection.")
+    st.stop()
+
+ticker = col_pick.selectbox(
+    f"SECURITY · {len(view_t)} shown" + (" · ranked by latest revenue" if view != "ALL" else ""),
+    view_t,
+    index=view_t.index("AAPL") if "AAPL" in view_t else 0,
     format_func=lambda t: f"{t}  |  {names[t]}",
 )
 company = companies[companies["ticker"] == ticker].iloc[0]
@@ -58,8 +78,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-tab_snap, tab_fin, tab_cmp, tab_q, tab_src = st.tabs(
-    ["SNAPSHOT", "FINANCIALS", "COMPARE", "QUALITY", "SOURCE"]
+tab_snap, tab_fin, tab_mod, tab_cmp, tab_q, tab_src = st.tabs(
+    ["SNAPSHOT", "FINANCIALS", "MODELS", "COMPARE", "QUALITY", "SOURCE"]
 )
 
 # ---------------- SNAPSHOT ----------------
@@ -104,6 +124,14 @@ with tab_fin:
     st.markdown(fin_table(df, 8), unsafe_allow_html=True)
     st.caption("Last 8 fiscal years. Values from 10-K filings; restated figures use the most recent filing.")
 
+# ---------------- MODELS ----------------
+with tab_mod:
+    st.markdown("##### FINANCIAL MODELS · deterministic, tested code, every input shown")
+    model = st.radio("MODEL", ["DUPONT ROE"], horizontal=True, label_visibility="collapsed")
+    if model == "DUPONT ROE":
+        is_fin = ticker in {"JPM", "BAC", "GS", "BRK-B"} or company.get("sector") == "Financials"
+        render_dupont(df, financial=is_fin)
+
 # ---------------- COMPARE ----------------
 with tab_cmp:
     cc1, cc2 = st.columns([3, 2])
@@ -115,8 +143,8 @@ with tab_cmp:
     st.plotly_chart(compare_chart({t: get_metrics(t) for t in picked}, metric), key="cmp")
     st.caption("X-axis = calendar year in which the fiscal year ends (Apple: September, Nvidia: January).")
 
-    st.markdown("##### SCREENER · latest fiscal year, all companies")
-    snap = get_snapshot(tuple(tickers))
+    st.markdown(f"##### SCREENER · latest fiscal year · {view} ({len(view_t)} companies)")
+    snap = get_snapshot(tuple(view_t))
     snap.insert(1, "Company", snap["Ticker"].map(names))
     styled = (
         snap.style.format(

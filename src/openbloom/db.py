@@ -7,9 +7,11 @@ COMPANIES_CSV = Path("data/companies.csv")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS companies (
-    cik    TEXT PRIMARY KEY,
-    ticker TEXT NOT NULL,
-    name   TEXT NOT NULL
+    cik          TEXT PRIMARY KEY,
+    ticker       TEXT NOT NULL,
+    name         TEXT NOT NULL,
+    sector       TEXT,
+    sub_industry TEXT
 );
 
 CREATE TABLE IF NOT EXISTS ingestion_runs (
@@ -102,18 +104,32 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def _migrate(conn) -> None:
+    """Add columns that older databases do not have yet."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(companies)")}
+    for col in ("sector", "sub_industry"):
+        if col not in cols:
+            conn.execute(f"ALTER TABLE companies ADD COLUMN {col} TEXT")
+
+
 def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(SCHEMA)
+        _migrate(conn)
         conn.executemany(
             "INSERT OR REPLACE INTO concept_map (metric, tag, priority, period_type) "
             "VALUES (?, ?, ?, ?)",
             CONCEPT_MAP,
         )
         with COMPANIES_CSV.open(encoding="utf-8") as f:
-            rows = [(r["cik"], r["ticker"], r["name"]) for r in csv.DictReader(f)]
+            rows = [
+                (r["cik"], r["ticker"], r["name"], r.get("sector") or None, r.get("sub_industry") or None)
+                for r in csv.DictReader(f)
+            ]
         conn.executemany(
-            "INSERT OR REPLACE INTO companies (cik, ticker, name) VALUES (?, ?, ?)",
+            "INSERT INTO companies (cik, ticker, name, sector, sub_industry) VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT(cik) DO UPDATE SET ticker = excluded.ticker, name = excluded.name, "
+            "sector = excluded.sector, sub_industry = excluded.sub_industry",
             rows,
         )
 
