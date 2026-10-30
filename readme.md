@@ -1,3 +1,16 @@
+## About this project and how it was built
+
+I'm not a software engineer and I'm not a strong coder. I work in analytics and operations, and I built OpenBloom to turn an idea into a working product using AI.
+
+**Claude (Anthropic) wrote most of the code and documentation.** My part was the product thinking and the judgment calls:
+- what to build and what to leave out (see `docs/ROADMAP.md`)
+- the rules the project follows: every number traces to a filing, no guessed data, no LLM in v1
+- the data decisions in `docs/DECISIONS.md`
+- running every step myself, checking results against the source filings, and catching problems such as missing data and the XOM filing trap
+
+If you find a bug or a better way to do something, issues and pull requests are welcome. I'm learning as I build.
+
+
 # OpenBloom
 
 A limited, open-source, Bloomberg-terminal-style fundamentals workbench for the S&P 500, built on free SEC EDGAR data.
