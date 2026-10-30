@@ -82,6 +82,7 @@ CONCEPT_MAP = [
     ("revenue", "Revenues", 2, "duration"),
     ("revenue", "RevenueFromContractWithCustomerIncludingAssessedTax", 3, "duration"),
     ("revenue", "SalesRevenueNet", 4, "duration"),
+    ("revenue", "RevenuesNetOfInterestExpense", 5, "duration"),
     ("gross_profit", "GrossProfit", 1, "duration"),
     ("operating_income", "OperatingIncomeLoss", 1, "duration"),
     ("net_income", "NetIncomeLoss", 1, "duration"),
@@ -93,7 +94,11 @@ CONCEPT_MAP = [
     ("total_liabilities", "Liabilities", 1, "instant"),
     ("equity", "StockholdersEquity", 1, "instant"),
     ("equity", "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest", 2, "instant"),
+    ("equity", "PartnersCapital", 3, "instant"),
     ("cash", "CashAndCashEquivalentsAtCarryingValue", 1, "instant"),
+    ("cash", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", 2, "instant"),
+    ("cash", "Cash", 3, "instant"),
+    ("cash", "CashAndDueFromBanks", 4, "instant"),
 ]
 
 

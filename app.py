@@ -7,7 +7,7 @@ from src.openbloom.ui.charts import bar_chart, compare_chart, growth_chart, line
 from src.openbloom.ui.data import get_companies, get_metrics, get_revenue_rank, get_snapshot, query
 from src.openbloom.ui.format import money, pct, pct_change, pp_change, signed_color
 from src.openbloom.ui.labels import FORMULAS, METRIC_LABELS
-from src.openbloom.ui.model_views import render_dupont
+from src.openbloom.ui.model_views import render_cash_conversion, render_dupont, render_restatements
 from src.openbloom.ui.tables import fin_table, kpi, show_kpis
 from src.openbloom.ui.theme import GREEN, apply_theme
 
@@ -127,10 +127,16 @@ with tab_fin:
 # ---------------- MODELS ----------------
 with tab_mod:
     st.markdown("##### FINANCIAL MODELS · deterministic, tested code, every input shown")
-    model = st.radio("MODEL", ["DUPONT ROE"], horizontal=True, label_visibility="collapsed")
+    model = st.radio(
+        "MODEL", ["DUPONT ROE", "CASH CONVERSION", "RESTATEMENTS"], horizontal=True, label_visibility="collapsed"
+    )
+    is_fin = ticker in {"JPM", "BAC", "GS", "BRK-B"} or company.get("sector") == "Financials"
     if model == "DUPONT ROE":
-        is_fin = ticker in {"JPM", "BAC", "GS", "BRK-B"} or company.get("sector") == "Financials"
         render_dupont(df, financial=is_fin)
+    elif model == "CASH CONVERSION":
+        render_cash_conversion(df, financial=is_fin)
+    else:
+        render_restatements(ticker)
 
 # ---------------- COMPARE ----------------
 with tab_cmp:
@@ -197,7 +203,11 @@ with tab_q:
         ),
         height=560,
     )
-    st.caption("Red 0 = no data. Banks do not report operating income or capex; many companies do not report gross profit.")
+    st.caption(
+        "Red 0 = no reported data. Banks do not report operating income or capex; many companies do not report gross profit. "
+        "Total liabilities is derived (assets minus equity, marked * in FINANCIALS) when not reported, "
+        "so it can show red here while still being available there."
+    )
 
     st.markdown("##### FLAGGED ISSUES")
     issues = query(

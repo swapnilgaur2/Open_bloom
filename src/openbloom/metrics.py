@@ -56,10 +56,28 @@ def load_annual_table(ticker: str) -> pd.DataFrame:
     return wide.reindex(columns=METRICS).reset_index()
 
 
+def derive_liabilities(liabilities, assets, equity):
+    """Reported total liabilities if present, else total assets - equity (flagged as derived).
+    The derived figure also includes any non-controlling or redeemable interests."""
+    if not _missing(liabilities):
+        return liabilities, False
+    if not _missing(assets) and not _missing(equity):
+        return assets - equity, True
+    return None, False
+
+
 def compute_metrics(df: pd.DataFrame) -> pd.DataFrame:
     """Add growth, margins, free cash flow and ratios to a table from load_annual_table."""
     df = df.sort_values("period_end").reset_index(drop=True)
     out = df.copy()
+
+    # Total liabilities: reported value, or assets - equity when the company does not tag it.
+    pairs = [
+        derive_liabilities(l, a, e)
+        for l, a, e in zip(df["total_liabilities"], df["total_assets"], df["equity"])
+    ]
+    out["total_liabilities"] = pd.to_numeric(pd.Series([p[0] for p in pairs]), errors="coerce")
+    out["total_liabilities_derived"] = [p[1] for p in pairs]
 
     # Growth only counts when the previous row is about one year earlier.
     gap_days = (
@@ -80,7 +98,9 @@ def compute_metrics(df: pd.DataFrame) -> pd.DataFrame:
     ]
     out["fcf_margin_pct"] = [margin_pct(f, r) for f, r in zip(out["free_cash_flow"], df["revenue"])]
     out["roe_pct"] = [ratio_pct(n, e) for n, e in zip(df["net_income"], df["equity"])]
-    out["liabilities_to_equity"] = [safe_divide(l, e) for l, e in zip(df["total_liabilities"], df["equity"])]
+    out["liabilities_to_equity"] = [
+        safe_divide(l, e) for l, e in zip(out["total_liabilities"], df["equity"])
+    ]
     return out
 
 

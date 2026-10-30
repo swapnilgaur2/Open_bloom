@@ -12,7 +12,10 @@ def query(sql: str, params: tuple = ()) -> pd.DataFrame:
 
 @st.cache_data(ttl=3600)
 def get_companies() -> pd.DataFrame:
-    return query("SELECT * FROM companies ORDER BY ticker")
+    """Companies that have at least one annual value stored (new listings with no 10-K yet are hidden)."""
+    return query(
+        "SELECT * FROM companies WHERE cik IN (SELECT DISTINCT cik FROM annual_metrics) ORDER BY ticker"
+    )
 
 
 @st.cache_data(ttl=3600)
@@ -36,7 +39,7 @@ def get_revenue_rank() -> pd.DataFrame:
 def get_metrics(ticker: str) -> pd.DataFrame:
     df = compute_metrics(load_annual_table(ticker))
     for col in df.columns:
-        if col != "period_end":
+        if col not in ("period_end", "total_liabilities_derived"):
             df[col] = pd.to_numeric(df[col], errors="coerce")
     return df
 
