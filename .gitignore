@@ -5,3 +5,7 @@ __pycache__/
 .pytest_cache/
 ~$*
 data/raw/
+
+pre_req.xlsx
+sec_test.py
+OpenBloom_Project_Tracker.xlsx
